@@ -19,6 +19,7 @@ package com.tencent.cloud.rpc.enhancement.feign.plugin.reporter;
 
 import java.net.SocketTimeoutException;
 
+import com.tencent.cloud.rpc.enhancement.config.RpcEnhancementReporterProperties;
 import com.tencent.cloud.rpc.enhancement.feign.plugin.EnhancedFeignContext;
 import com.tencent.cloud.rpc.enhancement.feign.plugin.EnhancedFeignPlugin;
 import com.tencent.cloud.rpc.enhancement.feign.plugin.EnhancedFeignPluginType;
@@ -34,16 +35,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.Ordered;
 
 /**
- * Polaris reporter when feign call is successful.
+ * Polaris reporter when feign call fails.
  *
  * @author Haotian Zhang
  */
 public class ExceptionPolarisReporter implements EnhancedFeignPlugin {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ExceptionPolarisReporter.class);
-
+	private final RpcEnhancementReporterProperties reporterProperties;
 	@Autowired(required = false)
 	private ConsumerAPI consumerAPI;
+
+	public ExceptionPolarisReporter(RpcEnhancementReporterProperties reporterProperties) {
+		this.reporterProperties = reporterProperties;
+	}
 
 	@Override
 	public String getName() {
@@ -57,6 +62,10 @@ public class ExceptionPolarisReporter implements EnhancedFeignPlugin {
 
 	@Override
 	public void run(EnhancedFeignContext context) {
+		if (!reporterProperties.isEnabled()) {
+			return;
+		}
+
 		if (consumerAPI != null) {
 			Request request = context.getRequest();
 			Response response = context.getResponse();
@@ -67,6 +76,9 @@ public class ExceptionPolarisReporter implements EnhancedFeignPlugin {
 			}
 			LOG.debug("Will report result of {}. Request=[{}]. Response=[{}].", retStatus.name(), request, response);
 			ServiceCallResult resultRequest = ReporterUtils.createServiceCallResult(request, retStatus);
+			consumerAPI.updateServiceCallResult(resultRequest);
+			// update result without method for service circuit break.
+			resultRequest.setMethod("");
 			consumerAPI.updateServiceCallResult(resultRequest);
 		}
 	}

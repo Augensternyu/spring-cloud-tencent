@@ -98,11 +98,11 @@ public class PolarisDiscoveryProperties {
 	private Boolean heartbeatEnabled = true;
 
 	/**
-	 * Heart beat interval (The time interval must be greater than zone).
-	 * Time unit: millisecond. Default: 5000.
+	 * Heartbeat interval ( 0 < interval <= 60).
+	 * Time unit: second. Default: 5.
 	 * @see ContextConstant#DEFAULT_REGISTRY_HEARTBEAT_TIME_INTERVAL
 	 */
-	private Integer heartBeatInterval = 5000;
+	private Integer heartbeatInterval = DEFAULT_REGISTRY_HEARTBEAT_TIME_INTERVAL;
 
 	/**
 	 * Custom health check url to override default.
@@ -211,15 +211,15 @@ public class PolarisDiscoveryProperties {
 		this.serviceListRefreshInterval = serviceListRefreshInterval;
 	}
 
-	public Integer getHeartBeatInterval() {
-		if (this.heartbeatEnabled && this.heartBeatInterval <= 0) {
-			return DEFAULT_REGISTRY_HEARTBEAT_TIME_INTERVAL;
+	public Integer getHeartbeatInterval() {
+		if (this.heartbeatEnabled && (this.heartbeatInterval <= 0 || this.heartbeatInterval > 60)) {
+			heartbeatInterval = DEFAULT_REGISTRY_HEARTBEAT_TIME_INTERVAL;
 		}
-		return heartBeatInterval;
+		return heartbeatInterval;
 	}
 
-	public void setHeartBeatInterval(Integer heartBeatInterval) {
-		this.heartBeatInterval = heartBeatInterval;
+	public void setHeartbeatInterval(Integer heartbeatInterval) {
+		this.heartbeatInterval = heartbeatInterval;
 	}
 
 	@Override
@@ -235,7 +235,7 @@ public class PolarisDiscoveryProperties {
 				", enabled=" + enabled +
 				", registerEnabled=" + registerEnabled +
 				", heartbeatEnabled=" + heartbeatEnabled +
-				", heartBeatInterval=" + heartBeatInterval +
+				", heartbeatInterval=" + heartbeatInterval +
 				", healthCheckUrl='" + healthCheckUrl + '\'' +
 				", serviceListRefreshInterval=" + serviceListRefreshInterval +
 				'}';
@@ -273,6 +273,5 @@ public class PolarisDiscoveryProperties {
 		public int getOrder() {
 			return ContextConstant.ModifierOrder.LAST;
 		}
-
 	}
 }

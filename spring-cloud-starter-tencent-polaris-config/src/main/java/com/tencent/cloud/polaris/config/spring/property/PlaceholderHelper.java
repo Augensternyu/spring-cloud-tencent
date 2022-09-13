@@ -31,8 +31,7 @@ import org.springframework.util.StringUtils;
 
 /**
  * Placeholder helper functions.
- * <br/>
- * <br/>
+ * <p>
  * This source file was originally from:
  * <code><a href=https://github.com/apolloconfig/apollo/blob/master/apollo-client/src/main/java/com/ctrip/framework/apollo/spring/property/PlaceholderHelper.java>
  *     PlaceholderHelper</a></code>
@@ -71,7 +70,7 @@ public class PlaceholderHelper {
 		if (beanFactory.getBeanExpressionResolver() == null) {
 			return value;
 		}
-		Scope scope = (beanDefinition != null ? beanFactory
+		Scope scope = (beanDefinition != null && beanDefinition.getScope() != null ? beanFactory
 				.getRegisteredScope(beanDefinition.getScope()) : null);
 		return beanFactory.getBeanExpressionResolver()
 				.evaluate(value, new BeanExpressionContext(beanFactory, scope));
@@ -92,7 +91,7 @@ public class PlaceholderHelper {
 	public Set<String> extractPlaceholderKeys(String propertyString) {
 		Set<String> placeholderKeys = Sets.newHashSet();
 
-		if (Strings.isNullOrEmpty(propertyString) || (!isNormalizedPlaceholder(propertyString) && !isExpressionWithPlaceholder(propertyString))) {
+		if (!isPlaceholder(propertyString)) {
 			return placeholderKeys;
 		}
 
@@ -145,6 +144,11 @@ public class PlaceholderHelper {
 		}
 
 		return placeholderKeys;
+	}
+
+	private boolean isPlaceholder(String propertyString) {
+		return !Strings.isNullOrEmpty(propertyString) &&
+				(isNormalizedPlaceholder(propertyString) || isExpressionWithPlaceholder(propertyString));
 	}
 
 	private boolean isNormalizedPlaceholder(String propertyString) {

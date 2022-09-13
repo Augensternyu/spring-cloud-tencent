@@ -17,9 +17,6 @@
 
 package com.tencent.cloud.rpc.enhancement.feign;
 
-import java.util.List;
-
-import com.tencent.cloud.rpc.enhancement.feign.plugin.EnhancedFeignPlugin;
 import feign.Client;
 
 import org.springframework.beans.BeansException;
@@ -31,6 +28,7 @@ import org.springframework.cloud.netflix.ribbon.SpringClientFactory;
 import org.springframework.cloud.openfeign.loadbalancer.FeignBlockingLoadBalancerClient;
 import org.springframework.cloud.openfeign.ribbon.CachingSpringLoadBalancerFactory;
 import org.springframework.cloud.openfeign.ribbon.LoadBalancerFeignClient;
+import org.springframework.lang.NonNull;
 
 /**
  * Wrap Spring Bean and decorating proxy for Feign Client.
@@ -39,16 +37,16 @@ import org.springframework.cloud.openfeign.ribbon.LoadBalancerFeignClient;
  */
 public class EnhancedFeignBeanPostProcessor implements BeanPostProcessor, BeanFactoryAware {
 
-	private final List<EnhancedFeignPlugin> enhancedFeignPlugins;
+	private EnhancedFeignPluginRunner pluginRunner;
 
 	private BeanFactory factory;
 
-	public EnhancedFeignBeanPostProcessor(List<EnhancedFeignPlugin> enhancedFeignPlugins) {
-		this.enhancedFeignPlugins = enhancedFeignPlugins;
+	public EnhancedFeignBeanPostProcessor(EnhancedFeignPluginRunner pluginRunner) {
+		this.pluginRunner = pluginRunner;
 	}
 
 	@Override
-	public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
+	public Object postProcessBeforeInitialization(@NonNull Object bean, @NonNull String beanName) throws BeansException {
 		return wrapper(bean);
 	}
 
@@ -79,7 +77,7 @@ public class EnhancedFeignBeanPostProcessor implements BeanPostProcessor, BeanFa
 	}
 
 	private EnhancedFeignClient createPolarisFeignClient(Client delegate) {
-		return new EnhancedFeignClient(delegate, enhancedFeignPlugins);
+		return new EnhancedFeignClient(delegate, pluginRunner);
 	}
 
 	@Override

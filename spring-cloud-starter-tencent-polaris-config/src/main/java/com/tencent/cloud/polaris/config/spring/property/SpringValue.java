@@ -21,14 +21,12 @@ import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Type;
 
 import org.springframework.core.MethodParameter;
 
 /**
  * Spring @Value method info.
- * <br/>
- * <br/>
+ * <p>
  * This source file was originally from:
  * <code><a href=https://github.com/apolloconfig/apollo/blob/master/apollo-client/src/main/java/com/ctrip/framework/apollo/spring/property/SpringValue.java>
  *     SpringValue</a></code>
@@ -37,30 +35,24 @@ import org.springframework.core.MethodParameter;
  */
 public class SpringValue {
 
-	private MethodParameter methodParameter;
-	private Field field;
 	private final WeakReference<Object> beanRef;
 	private final String beanName;
 	private final String key;
 	private final String placeholder;
 	private final Class<?> targetType;
-	private Type genericType;
-	private final boolean isJson;
+	private MethodParameter methodParameter;
+	private Field field;
 
-	public SpringValue(String key, String placeholder, Object bean, String beanName, Field field, boolean isJson) {
+	public SpringValue(String key, String placeholder, Object bean, String beanName, Field field) {
 		this.beanRef = new WeakReference<>(bean);
 		this.beanName = beanName;
 		this.field = field;
 		this.key = key;
 		this.placeholder = placeholder;
 		this.targetType = field.getType();
-		this.isJson = isJson;
-		if (isJson) {
-			this.genericType = field.getGenericType();
-		}
 	}
 
-	public SpringValue(String key, String placeholder, Object bean, String beanName, Method method, boolean isJson) {
+	public SpringValue(String key, String placeholder, Object bean, String beanName, Method method) {
 		this.beanRef = new WeakReference<>(bean);
 		this.beanName = beanName;
 		this.methodParameter = new MethodParameter(method, 0);
@@ -68,10 +60,6 @@ public class SpringValue {
 		this.placeholder = placeholder;
 		Class<?>[] paramTps = method.getParameterTypes();
 		this.targetType = paramTps[0];
-		this.isJson = isJson;
-		if (isJson) {
-			this.genericType = method.getGenericParameterTypes()[0];
-		}
 	}
 
 	public void update(Object newVal) throws IllegalAccessException, InvocationTargetException {
@@ -97,7 +85,7 @@ public class SpringValue {
 	private void injectMethod(Object newVal)
 			throws InvocationTargetException, IllegalAccessException {
 		Object bean = beanRef.get();
-		if (bean == null) {
+		if (bean == null || methodParameter.getMethod() == null) {
 			return;
 		}
 		methodParameter.getMethod().invoke(bean, newVal);
@@ -127,14 +115,6 @@ public class SpringValue {
 		return field;
 	}
 
-	public Type getGenericType() {
-		return genericType;
-	}
-
-	public boolean isJson() {
-		return isJson;
-	}
-
 	boolean isTargetBeanValid() {
 		return beanRef.get() != null;
 	}
@@ -150,7 +130,12 @@ public class SpringValue {
 					.format("key: %s, beanName: %s, field: %s.%s", key, beanName, bean.getClass()
 							.getName(), field.getName());
 		}
-		return String.format("key: %s, beanName: %s, method: %s.%s", key, beanName, bean.getClass().getName(),
-				methodParameter.getMethod().getName());
+		if (null != methodParameter.getMethod()) {
+			return String.format("key: %s, beanName: %s, method: %s.%s", key, beanName, bean.getClass().getName(),
+					methodParameter.getMethod().getName());
+		}
+		else {
+			return String.format("key: %s, beanName: %s", key, beanName);
+		}
 	}
 }

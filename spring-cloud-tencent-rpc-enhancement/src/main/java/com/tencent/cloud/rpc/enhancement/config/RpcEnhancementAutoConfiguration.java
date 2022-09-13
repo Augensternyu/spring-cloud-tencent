@@ -17,28 +17,36 @@
 
 package com.tencent.cloud.rpc.enhancement.config;
 
+import java.util.Collections;
 import java.util.List;
 
 import com.tencent.cloud.polaris.context.config.PolarisContextAutoConfiguration;
+import com.tencent.cloud.rpc.enhancement.feign.DefaultEnhancedFeignPluginRunner;
 import com.tencent.cloud.rpc.enhancement.feign.EnhancedFeignBeanPostProcessor;
+import com.tencent.cloud.rpc.enhancement.feign.EnhancedFeignPluginRunner;
 import com.tencent.cloud.rpc.enhancement.feign.plugin.EnhancedFeignPlugin;
 import com.tencent.cloud.rpc.enhancement.feign.plugin.reporter.ExceptionPolarisReporter;
 import com.tencent.cloud.rpc.enhancement.feign.plugin.reporter.SuccessPolarisReporter;
-import com.tencent.cloud.rpc.enhancement.resttemplate.EnhancedRestTemplateModifier;
+import com.tencent.cloud.rpc.enhancement.resttemplate.BlockingLoadBalancerClientAspect;
 import com.tencent.cloud.rpc.enhancement.resttemplate.EnhancedRestTemplateReporter;
+import com.tencent.cloud.rpc.enhancement.resttemplate.RibbonLoadBalancerClientAspect;
 import com.tencent.polaris.api.core.ConsumerAPI;
 
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.annotation.Order;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.context.annotation.Role;
 import org.springframework.web.client.RestTemplate;
-
-import static org.springframework.core.Ordered.HIGHEST_PRECEDENCE;
 
 /**
  * Auto Configuration for Polaris {@link feign.Feign} OR {@link RestTemplate} which can automatically bring in the call
@@ -48,6 +56,7 @@ import static org.springframework.core.Ordered.HIGHEST_PRECEDENCE;
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(value = "spring.cloud.tencent.rpc-enhancement.enabled", havingValue = "true", matchIfMissing = true)
+@EnableConfigurationProperties(RpcEnhancementReporterProperties.class)
 @AutoConfigureAfter(PolarisContextAutoConfiguration.class)
 public class RpcEnhancementAutoConfiguration {
 
@@ -60,26 +69,31 @@ public class RpcEnhancementAutoConfiguration {
 	@Configuration(proxyBeanMethods = false)
 	@ConditionalOnClass(name = "org.springframework.cloud.openfeign.FeignAutoConfiguration")
 	@AutoConfigureBefore(name = "org.springframework.cloud.openfeign.FeignAutoConfiguration")
+	@Role(RootBeanDefinition.ROLE_INFRASTRUCTURE)
 	protected static class PolarisFeignClientAutoConfiguration {
 
 		@Bean
-		@Order(HIGHEST_PRECEDENCE)
-		public EnhancedFeignBeanPostProcessor polarisFeignBeanPostProcessor(
+		public EnhancedFeignPluginRunner enhancedFeignPluginRunner(
 				@Autowired(required = false) List<EnhancedFeignPlugin> enhancedFeignPlugins) {
-			return new EnhancedFeignBeanPostProcessor(enhancedFeignPlugins);
+			return new DefaultEnhancedFeignPluginRunner(enhancedFeignPlugins);
+		}
+
+		@Bean
+		public EnhancedFeignBeanPostProcessor polarisFeignBeanPostProcessor(@Lazy EnhancedFeignPluginRunner pluginRunner) {
+			return new EnhancedFeignBeanPostProcessor(pluginRunner);
 		}
 
 		@Configuration
 		static class PolarisReporterConfig {
 
 			@Bean
-			public SuccessPolarisReporter successPolarisReporter() {
-				return new SuccessPolarisReporter();
+			public SuccessPolarisReporter successPolarisReporter(RpcEnhancementReporterProperties properties) {
+				return new SuccessPolarisReporter(properties);
 			}
 
 			@Bean
-			public ExceptionPolarisReporter exceptionPolarisReporter() {
-				return new ExceptionPolarisReporter();
+			public ExceptionPolarisReporter exceptionPolarisReporter(RpcEnhancementReporterProperties properties) {
+				return new ExceptionPolarisReporter(properties);
 			}
 		}
 	}
@@ -94,16 +108,37 @@ public class RpcEnhancementAutoConfiguration {
 	@ConditionalOnClass(name = "org.springframework.web.client.RestTemplate")
 	protected static class PolarisRestTemplateAutoConfiguration {
 
+		@LoadBalanced
+		@Autowired(required = false)
+		private List<RestTemplate> restTemplates = Collections.emptyList();
+
 		@Bean
-		public EnhancedRestTemplateReporter polarisRestTemplateResponseErrorHandler(
-				ConsumerAPI consumerAPI) {
-			return new EnhancedRestTemplateReporter(consumerAPI);
+		public EnhancedRestTemplateReporter enhancedRestTemplateReporter(
+				RpcEnhancementReporterProperties properties, ConsumerAPI consumerAPI) {
+			return new EnhancedRestTemplateReporter(properties, consumerAPI);
 		}
 
 		@Bean
-		public EnhancedRestTemplateModifier polarisRestTemplateBeanPostProcessor(
-				EnhancedRestTemplateReporter restTemplateResponseErrorHandler) {
-			return new EnhancedRestTemplateModifier(restTemplateResponseErrorHandler);
+		public SmartInitializingSingleton setErrorHandlerForRestTemplate(EnhancedRestTemplateReporter reporter) {
+			return () -> {
+				for (RestTemplate restTemplate : restTemplates) {
+					restTemplate.setErrorHandler(reporter);
+				}
+			};
+		}
+
+		@Bean
+		@ConditionalOnMissingBean
+		@ConditionalOnClass(name = {"org.springframework.cloud.netflix.ribbon.RibbonLoadBalancerClient"})
+		public RibbonLoadBalancerClientAspect ribbonLoadBalancerClientAspect() {
+			return new RibbonLoadBalancerClientAspect();
+		}
+
+		@Bean
+		@ConditionalOnMissingBean
+		@ConditionalOnClass(name = {"org.springframework.cloud.loadbalancer.blocking.client.BlockingLoadBalancerClient"})
+		public BlockingLoadBalancerClientAspect blockingLoadBalancerClientAspect() {
+			return new BlockingLoadBalancerClientAspect();
 		}
 	}
 }

@@ -85,14 +85,21 @@ public class PolarisLoadBalancerCompositeRule extends AbstractLoadBalancerRule {
 			PolarisLoadBalancerProperties polarisLoadBalancerProperties,
 			IClientConfig iClientConfig,
 			List<RouterRequestInterceptor> requestInterceptors,
-			List<RouterResponseInterceptor> responseInterceptors) {
+			List<RouterResponseInterceptor> responseInterceptors,
+			AbstractLoadBalancerRule delegate) {
 		this.routerAPI = routerAPI;
 		this.loadBalancerProperties = polarisLoadBalancerProperties;
 		this.requestInterceptors = requestInterceptors;
 		this.responseInterceptors = responseInterceptors;
 
-		delegateRule = getRule();
-		delegateRule.initWithNiwsConfig(iClientConfig);
+		AbstractLoadBalancerRule loadBalancerRule = getRule();
+		if (loadBalancerRule != null) {
+			delegateRule = loadBalancerRule;
+			delegateRule.initWithNiwsConfig(iClientConfig);
+		}
+		else {
+			delegateRule = delegate;
+		}
 	}
 
 	@Override
@@ -107,6 +114,7 @@ public class PolarisLoadBalancerCompositeRule extends AbstractLoadBalancerRule {
 			return null;
 		}
 
+		ILoadBalancer loadBalancer = new SimpleLoadBalancer();
 		// 2. filter by router
 		if (key instanceof PolarisRouterContext) {
 			PolarisRouterContext routerContext = (PolarisRouterContext) key;
@@ -114,10 +122,12 @@ public class PolarisLoadBalancerCompositeRule extends AbstractLoadBalancerRule {
 			// 3. filter by load balance.
 			// A LoadBalancer needs to be regenerated for each request,
 			// because the list of servers may be different after filtered by router
-			ILoadBalancer loadBalancer = new SimpleLoadBalancer();
 			loadBalancer.addServers(serversAfterRouter);
-			delegateRule.setLoadBalancer(loadBalancer);
 		}
+		else {
+			loadBalancer.addServers(allServers);
+		}
+		delegateRule.setLoadBalancer(loadBalancer);
 
 		return delegateRule.choose(key);
 	}
@@ -173,7 +183,7 @@ public class PolarisLoadBalancerCompositeRule extends AbstractLoadBalancerRule {
 	public AbstractLoadBalancerRule getRule() {
 		String loadBalanceStrategy = loadBalancerProperties.getStrategy();
 		if (StringUtils.isEmpty(loadBalanceStrategy)) {
-			return new ZoneAvoidanceRule();
+			return null;
 		}
 		switch (loadBalanceStrategy) {
 		case STRATEGY_RANDOM:
@@ -194,5 +204,9 @@ public class PolarisLoadBalancerCompositeRule extends AbstractLoadBalancerRule {
 		default:
 			return new ZoneAvoidanceRule();
 		}
+	}
+
+	public AbstractLoadBalancerRule getDelegateRule() {
+		return delegateRule;
 	}
 }

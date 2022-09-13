@@ -17,6 +17,8 @@
 
 package com.tencent.cloud.rpc.enhancement.feign.plugin.reporter;
 
+import com.tencent.cloud.rpc.enhancement.AbstractPolarisReporterAdapter;
+import com.tencent.cloud.rpc.enhancement.config.RpcEnhancementReporterProperties;
 import com.tencent.cloud.rpc.enhancement.feign.plugin.EnhancedFeignContext;
 import com.tencent.cloud.rpc.enhancement.feign.plugin.EnhancedFeignPlugin;
 import com.tencent.cloud.rpc.enhancement.feign.plugin.EnhancedFeignPluginType;
@@ -30,18 +32,22 @@ import org.slf4j.LoggerFactory;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.Ordered;
+import org.springframework.http.HttpStatus;
 
 /**
  * Polaris reporter when feign call is successful.
  *
  * @author Haotian Zhang
  */
-public class SuccessPolarisReporter implements EnhancedFeignPlugin {
+public class SuccessPolarisReporter extends AbstractPolarisReporterAdapter implements EnhancedFeignPlugin {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SuccessPolarisReporter.class);
-
 	@Autowired(required = false)
 	private ConsumerAPI consumerAPI;
+
+	public SuccessPolarisReporter(RpcEnhancementReporterProperties properties) {
+		super(properties);
+	}
 
 	@Override
 	public String getName() {
@@ -55,15 +61,22 @@ public class SuccessPolarisReporter implements EnhancedFeignPlugin {
 
 	@Override
 	public void run(EnhancedFeignContext context) {
+		if (!reportProperties.isEnabled()) {
+			return;
+		}
+
 		if (consumerAPI != null) {
 			Request request = context.getRequest();
 			Response response = context.getResponse();
 			RetStatus retStatus = RetStatus.RetSuccess;
-			if (response.status() > 500) {
+			if (apply(HttpStatus.resolve(response.status()))) {
 				retStatus = RetStatus.RetFail;
 			}
 			LOG.debug("Will report result of {}. Request=[{}]. Response=[{}].", retStatus.name(), request, response);
 			ServiceCallResult resultRequest = ReporterUtils.createServiceCallResult(request, retStatus);
+			consumerAPI.updateServiceCallResult(resultRequest);
+			// update result without method for service circuit break.
+			resultRequest.setMethod("");
 			consumerAPI.updateServiceCallResult(resultRequest);
 		}
 	}

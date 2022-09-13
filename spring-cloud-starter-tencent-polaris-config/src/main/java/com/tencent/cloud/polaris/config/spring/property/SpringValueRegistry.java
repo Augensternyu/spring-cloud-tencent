@@ -36,8 +36,7 @@ import org.springframework.beans.factory.BeanFactory;
 
 /**
  * Spring value auto registry.
- * <br/>
- * <br/>
+ * <p>
  * This source file was originally from:
  * <code><a href=https://github.com/apolloconfig/apollo/blob/master/apollo-client/src/main/java/com/ctrip/framework/apollo/spring/property/SpringValueRegistry.java>
  *     SpringValueRegistry</a></code>
@@ -94,14 +93,8 @@ public class SpringValueRegistry {
 		Iterator<Multimap<String, SpringValue>> iterator = registry.values().iterator();
 		while (!Thread.currentThread().isInterrupted() && iterator.hasNext()) {
 			Multimap<String, SpringValue> springValues = iterator.next();
-			Iterator<Map.Entry<String, SpringValue>> springValueIterator = springValues.entries().iterator();
-			while (springValueIterator.hasNext()) {
-				Map.Entry<String, SpringValue> springValue = springValueIterator.next();
-				if (!springValue.getValue().isTargetBeanValid()) {
-					// clear unused spring values
-					springValueIterator.remove();
-				}
-			}
+			// clear unused spring values
+			springValues.entries().removeIf(springValue -> !springValue.getValue().isTargetBeanValid());
 		}
 	}
 }

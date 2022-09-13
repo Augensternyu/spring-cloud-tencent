@@ -30,7 +30,6 @@ import com.tencent.polaris.client.api.SDKContext;
 import org.apache.commons.lang.StringUtils;
 
 import org.springframework.cloud.client.DefaultServiceInstance;
-import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.serviceregistry.Registration;
 import org.springframework.lang.Nullable;
 import org.springframework.util.CollectionUtils;
@@ -40,7 +39,7 @@ import org.springframework.util.CollectionUtils;
  *
  * @author Haotian Zhang, Andrew Shan, Jie Cheng, Palmer.Xu
  */
-public class PolarisRegistration implements Registration, ServiceInstance {
+public class PolarisRegistration implements Registration {
 
 	private final static String METADATA_KEY_IP = "internal-ip";
 
@@ -109,9 +108,6 @@ public class PolarisRegistration implements Registration, ServiceInstance {
 			instanceMetadata.put(METADATA_KEY_ADDRESS, host + ":" + polarisDiscoveryProperties.getPort());
 
 			instanceMetadata.putAll(staticMetadataManager.getMergedStaticMetadata());
-
-			// location info will be putted both in metadata and instance's field
-			instanceMetadata.putAll(staticMetadataManager.getLocationMetadata());
 
 			this.metadata = Collections.unmodifiableMap(instanceMetadata);
 		}

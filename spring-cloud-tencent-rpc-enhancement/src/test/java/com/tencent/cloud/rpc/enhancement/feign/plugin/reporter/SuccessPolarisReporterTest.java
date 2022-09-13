@@ -17,6 +17,7 @@
 
 package com.tencent.cloud.rpc.enhancement.feign.plugin.reporter;
 
+import com.tencent.cloud.rpc.enhancement.config.RpcEnhancementReporterProperties;
 import com.tencent.cloud.rpc.enhancement.feign.plugin.EnhancedFeignContext;
 import com.tencent.cloud.rpc.enhancement.feign.plugin.EnhancedFeignPluginType;
 import com.tencent.polaris.api.core.ConsumerAPI;
@@ -43,12 +44,14 @@ import static org.mockito.Mockito.mock;
  *
  * @author Haotian Zhang
  */
-@RunWith(MockitoJUnitRunner.class)
+@RunWith(MockitoJUnitRunner.Silent.class)
 public class SuccessPolarisReporterTest {
 
 	private static MockedStatic<ReporterUtils> mockedReporterUtils;
 	@Mock
 	private ConsumerAPI consumerAPI;
+	@Mock
+	private RpcEnhancementReporterProperties reporterProperties;
 	@InjectMocks
 	private SuccessPolarisReporter successPolarisReporter;
 
