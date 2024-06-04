@@ -1,4 +1,6 @@
 # Change Log
 ---
 
-- [Optimize: remove discovery module useless code](https://github.com/Tencent/spring-cloud-tencent/pull/595)
+- [feat:upgrade jackson version.](https://github.com/Tencent/spring-cloud-tencent/pull/1259)
+- [fix:fix ApplicationContextAwareUtils NPE bug.](https://github.com/Tencent/spring-cloud-tencent/pull/1294)
+- [feat:upgrade jacoco version.](https://github.com/Tencent/spring-cloud-tencent/pull/1308)
